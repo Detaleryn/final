@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -39,18 +40,16 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := db.AddTask(&task)
 	if err != nil {
+		log.Printf("failed to add task: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
+			"error": "internal server error",
 		})
 		return
 	}
 
-	err = writeJSON(w, http.StatusOK, map[string]string{
+	writeJSON(w, http.StatusOK, map[string]string{
 		"id": strconv.FormatInt(id, 10),
 	})
-	if err != nil {
-		return
-	}
 
 }
 
@@ -91,8 +90,10 @@ func checkDate(task *db.Task) error {
 	return nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, data any) error {
+func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("failed to encode JSON response: %v", err)
+	}
 }

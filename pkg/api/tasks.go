@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -23,12 +24,10 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = writeJSON(w, http.StatusOK, TasksResp{
+	writeJSON(w, http.StatusOK, TasksResp{
 		Tasks: tasks,
 	})
-	if err != nil {
-		return
-	}
+
 }
 
 func getTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,16 +43,19 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	task, err := db.GetTask(id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{
-			"error": "task not found",
-		})
+		if errors.Is(err, db.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "task not found",
+			})
+		} else {
+			log.Printf("failed to get task: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "internal server error",
+			})
+		}
 		return
 	}
-
-	err = writeJSON(w, http.StatusOK, task)
-	if err != nil {
-		return
-	}
+	writeJSON(w, http.StatusOK, task)
 }
 
 func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,16 +86,20 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.UpdateTask(&task)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
-		})
+		if errors.Is(err, db.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "task not found",
+			})
+		} else {
+			log.Printf("failed to update task: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "internal server error",
+			})
+		}
 		return
 	}
 
-	err = writeJSON(w, http.StatusOK, map[string]string{})
-	if err != nil {
-		return
-	}
+	writeJSON(w, http.StatusOK, map[string]string{})
 
 }
 
@@ -156,10 +162,8 @@ func doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	err = writeJSON(w, http.StatusOK, map[string]string{})
-	if err != nil {
-		return
-	}
+	writeJSON(w, http.StatusOK, map[string]string{})
+
 }
 
 func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -180,8 +184,6 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = writeJSON(w, http.StatusOK, map[string]string{})
-	if err != nil {
-		return
-	}
+	writeJSON(w, http.StatusOK, map[string]string{})
+
 }
